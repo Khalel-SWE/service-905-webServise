@@ -112,30 +112,40 @@ public class ItemServiceImpl implements ItemService {
 
 	@Override
 	public List<Item> loadItems() {
-		try {
-			Connection connection =  dataSource.getConnection();
-			String query = "SELECT * FROM item order by id";
-			Statement statement = connection.createStatement();
-			ResultSet resultSet = statement.executeQuery(query);
-			
-			List<Item> items = new ArrayList<Item>();
-			
-			while (resultSet.next()) {
-				Item item = new Item(
-						resultSet.getInt("id"),
-						resultSet.getString("Name"),
-						resultSet.getDouble("price"),
-						resultSet.getInt("total_number")
-				);
-				items.add(item);
-			}
-			
-			return items;
-			
-		} catch (SQLException e) {
-			System.out.println(e.getMessage());
-		}
-		return null;
+	    try {
+	        Connection connection = dataSource.getConnection();
+	        // استعلام معدّل ليشمل معلومات عن وجود التفاصيل
+	        String query = "SELECT i.*, " +
+	                       "CASE WHEN d.id IS NULL THEN 0 ELSE 1 END as has_details " +
+	                       "FROM item i " +
+	                       "LEFT JOIN item_details d ON i.id = d.item_id " +
+	                       "ORDER BY i.id";
+	        
+	        Statement statement = connection.createStatement();
+	        ResultSet resultSet = statement.executeQuery(query);
+	        
+	        List<Item> items = new ArrayList<Item>();
+	        
+	        while (resultSet.next()) {
+	            Item item = new Item(
+	                resultSet.getInt("id"),
+	                resultSet.getString("Name"),
+	                resultSet.getDouble("price"),
+	                resultSet.getInt("total_number")
+	            );
+	            
+	            // تعيين قيمة hasDetails
+	            item.setHasDetails(resultSet.getInt("has_details") == 1);
+	            
+	            items.add(item);
+	        }
+	        
+	        return items;
+	        
+	    } catch (SQLException e) {
+	        System.out.println("Error loading items: " + e.getMessage());
+	    }
+	    return null;
 	}
 
 

@@ -1,8 +1,13 @@
 package com.item.controller;
 
 import java.io.IOException;
+
 import java.util.List;
 import java.util.Objects;
+
+import com.item.model.ItemDetails;
+import com.item.service.ItemDetailsService;
+import com.item.service.impl.ItemDetailsServiceImpl;
 
 import javax.annotation.Resource;
 import javax.servlet.ServletException;
@@ -28,6 +33,8 @@ import com.item.service.impl.ItemServiceImpl;
 @WebServlet("/ItemController")
 public class ItemController extends HttpServlet { 
    
+	private ItemDetailsService itemDetailsService;//1
+	
 	@Resource(name = "jdbc/item")
 	private DataSource dataSource;
 
@@ -41,6 +48,7 @@ public class ItemController extends HttpServlet {
 	@Override
 	public void init() throws ServletException {
 		itemService = new ItemServiceImpl(dataSource);
+		itemDetailsService = new ItemDetailsServiceImpl(dataSource);//2
 	}
 
 	
@@ -68,6 +76,17 @@ public class ItemController extends HttpServlet {
 			case "load-items":
 				loadItems(request, response);
 				break;
+			case "show-add-item-details":// from here...
+                showAddItemDetails(request, response);
+                break;
+                
+            case "add-item-details":
+                addItemDetails(request, response);
+                break;
+                
+            case "show-item-details":
+                showItemDetails(request, response);
+                break;// to here....
 			default:
 				loadItems(request, response);
 		}
@@ -142,4 +161,59 @@ public class ItemController extends HttpServlet {
 		
 		return item;
 	}
+	
+	
+	// from here till the end
+	// دالة لعرض صفحة إضافة التفاصيل
+    private void showAddItemDetails(HttpServletRequest request, HttpServletResponse response) {
+        int itemId = Integer.parseInt(request.getParameter("itemId"));
+        try {
+            response.sendRedirect("add-item-details.jsp?itemId=" + itemId);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // دالة لحفظ التفاصيل
+    private void addItemDetails(HttpServletRequest request, HttpServletResponse response) {
+        int itemId = Integer.parseInt(request.getParameter("itemId"));
+        String description = request.getParameter("description");
+
+        // نتحقق لو العنصر له تفاصيل قبل كده
+        if (itemDetailsService.hasItemDetails(itemId)) {
+            try {
+                response.sendRedirect("error.jsp?message=Item already has details");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        // ننشئ كائن التفاصيل
+        ItemDetails details = new ItemDetails(description, itemId);
+        
+        // نحفظ في الداتابيز
+        if (itemDetailsService.saveItemDetails(details)) {
+            loadItems(request, response); // نرجع لصفحة العناصر
+        } else {
+            try {
+                response.sendRedirect("error.jsp");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // دالة لعرض تفاصيل عنصر معين
+    private void showItemDetails(HttpServletRequest request, HttpServletResponse response) {
+        int itemId = Integer.parseInt(request.getParameter("itemId"));
+        ItemDetails details = itemDetailsService.getItemDetailsByItemId(itemId);
+        
+        request.setAttribute("itemDetails", details);
+        try {
+            request.getRequestDispatcher("/show-item-details.jsp").forward(request, response);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
